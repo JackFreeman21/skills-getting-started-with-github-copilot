@@ -169,3 +169,39 @@ def test_signup_with_url_encoded_activity_name(client):
     
     # Assert
     assert response.status_code == 200
+
+
+def test_signup_activity_at_capacity_fails(client):
+    """
+    Arrange: Fill an activity to maximum capacity, then try to add one more student
+    Act: Make a POST request to signup for a full activity
+    Assert: Verify the request fails with 400 status
+    """
+    # Arrange
+    activity_name = "Chess Club"  # Max 12 participants
+    base_participants = ["test1@mergington.edu", "test2@mergington.edu"]  # Already has 2
+    
+    # Fill the activity to capacity (12 total)
+    for i in range(10):  # Add 10 more to reach 12
+        email = f"capacity_test{i}@mergington.edu"
+        client.post(
+            f"/activities/{activity_name}/signup",
+            params={"email": email}
+        )
+    
+    # Verify we're at capacity
+    activities_response = client.get("/activities")
+    activities_data = activities_response.json()
+    assert len(activities_data[activity_name]["participants"]) == 12
+    
+    # Act - Try to add one more student
+    extra_student = "extra_student@mergington.edu"
+    response = client.post(
+        f"/activities/{activity_name}/signup",
+        params={"email": extra_student}
+    )
+    
+    # Assert
+    assert response.status_code == 400
+    data = response.json()
+    assert "capacity" in data["detail"].lower() or "full" in data["detail"].lower()
